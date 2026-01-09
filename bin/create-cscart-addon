@@ -1,0 +1,179 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+// ----------------------
+// Helpers
+// ----------------------
+function toStudlyCase(string $value): string
+{
+    return str_replace(' ', '', ucwords(str_replace('_', ' ', $value)));
+}
+
+function create_dir(string $path): void
+{
+    if (!is_dir($path)) {
+        mkdir($path, 0777, true);
+    }
+}
+
+function create_file(string $path, string $content): void
+{
+    file_put_contents($path, $content);
+}
+
+// ----------------------
+// Input
+// ----------------------
+if ($argc < 2) {
+    echo "❌ Please provide addon name\n";
+    echo "Usage: create-cscart-addon <addon_name>\n";
+    exit(1);
+}
+
+$addonId = $argv[1];
+
+// Validation
+if (!preg_match('/^[a-zA-Z0-9_]+$/', $addonId)) {
+    echo "❌ Invalid addon name\n";
+    echo "✔ Only letters, numbers and underscore (_) allowed\n";
+    exit(1);
+}
+
+$addonNamespace = toStudlyCase($addonId);
+$root = getcwd() . DIRECTORY_SEPARATOR . $addonId;
+
+// Prevent overwrite
+if (file_exists($root)) {
+    echo "❌ Folder already exists: {$addonId}\n";
+    exit(1);
+}
+
+// ----------------------
+// Folder structure
+// ----------------------
+$folders = [
+    "app/addons/{$addonId}/controllers",
+    "app/addons/{$addonId}/{$addonNamespace}Model",
+    "app/addons/{$addonId}/{$addonNamespace}Controllers",
+    "app/addons/{$addonId}/schema",
+    "app/addons/{$addonId}/src/HookHandlers",
+    "design/templates/addons/{$addonId}",
+    "var/langs/addons"
+];
+
+foreach ($folders as $folder) {
+    create_dir($root . DIRECTORY_SEPARATOR . $folder);
+}
+
+// ----------------------
+// addon.xml
+// ----------------------
+create_file(
+    "{$root}/app/addons/{$addonId}/addon.xml",
+    <<<XML
+<?xml version="1.0"?>
+<addon scheme="4.0">
+    <id>{$addonId}</id>
+    <version>1.0</version>
+    <priority>1000</priority>
+    <status>active</status>
+
+    <autoload>
+        <psr4 prefix="Tygh\\Addons\\{$addonNamespace}\\">src</psr4>
+    </autoload>
+
+    <bootstrap>Tygh\\Addons\\{$addonNamespace}\\Bootstrap</bootstrap>
+    <installer>Tygh\\Addons\\{$addonNamespace}\\Installer</installer>
+</addon>
+XML
+);
+
+// ----------------------
+// Bootstrap.php
+// ----------------------
+create_file(
+    "{$root}/app/addons/{$addonId}/src/Bootstrap.php",
+    <<<PHP
+<?php
+
+namespace Tygh\\Addons\\{$addonNamespace};
+
+use Tygh\\Core\\ApplicationInterface;
+use Tygh\\Core\\BootstrapInterface;
+use Tygh\\Core\\HookHandlerProviderInterface;
+
+class Bootstrap implements BootstrapInterface, HookHandlerProviderInterface
+{
+    public function boot(ApplicationInterface \$app)
+    {
+        \$app->register(new ServiceProvider());
+    }
+
+    public function getHookHandlerMap()
+    {
+        return [];
+    }
+}
+PHP
+);
+
+// ----------------------
+// Installer.php
+// ----------------------
+create_file(
+    "{$root}/app/addons/{$addonId}/src/Installer.php",
+    <<<PHP
+<?php
+
+namespace Tygh\\Addons\\{$addonNamespace};
+
+use Tygh\\Addons\\InstallerInterface;
+use Tygh\\Core\\ApplicationInterface;
+
+class Installer implements InstallerInterface
+{
+    public static function factory(ApplicationInterface \$app)
+    {
+        return new self();
+    }
+
+    public function onInstall()
+    {
+    }
+
+    public function onUninstall()
+    {
+    }
+
+    public function onBeforeInstall()
+    {
+    }
+}
+PHP
+);
+
+// ----------------------
+// ServiceProvider.php
+// ----------------------
+create_file(
+    "{$root}/app/addons/{$addonId}/src/ServiceProvider.php",
+    <<<PHP
+<?php
+
+namespace Tygh\\Addons\\{$addonNamespace};
+
+use Pimple\\Container;
+use Pimple\\ServiceProviderInterface;
+
+class ServiceProvider implements ServiceProviderInterface
+{
+    public function register(Container \$app)
+    {
+        // Register services here
+    }
+}
+PHP
+);
+
+echo "✅ CS-Cart addon scaffold created: {$addonId}\n";

@@ -1,0 +1,17 @@
+{
+  "name": "anujpratap/create-cscart-addon",
+  "description": "CLI tool to scaffold CS-Cart addons",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "CreateCscartAddon\\": "src/"
+    }
+  },
+  "bin": [
+    "bin/create-cscart-addon"
+  ]
+}
