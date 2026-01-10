@@ -2,6 +2,7 @@
 <?php
 
 require __DIR__ . '/../../../autoload.php';
+
 // ----------------------
 // Helpers
 // ----------------------
@@ -23,6 +24,22 @@ function create_file(string $path, string $content): void
 }
 
 // ----------------------
+// Interactive Yes/No
+// ----------------------
+function askYesNo(string $question, bool $default = true): bool
+{
+    $yesNo = $default ? '[Y/n]' : '[y/N]';
+    echo "{$question} {$yesNo}: ";
+    $input = trim(fgets(STDIN));
+
+    if ($input === '') {
+        return $default;
+    }
+
+    return in_array(strtolower($input), ['y', 'yes']);
+}
+
+// ----------------------
 // Input
 // ----------------------
 if ($argc < 2) {
@@ -34,9 +51,9 @@ if ($argc < 2) {
 $addonId = $argv[1];
 
 // Validation
-if (!preg_match('/^[a-zA-Z0-9_]+$/', $addonId)) {
+if (!preg_match('/^[a-z_]+$/', $addonId)) {
     echo "❌ Invalid addon name\n";
-    echo "✔ Only letters, numbers and underscore (_) allowed\n";
+    echo "✔ Only lowercase letters and underscore (_) allowed\n";
     exit(1);
 }
 
@@ -59,19 +76,24 @@ $folders = [
     "app/addons/{$addonId}/schema",
     "app/addons/{$addonId}/src/HookHandlers",
     "design/templates/addons/{$addonId}",
-    "var/langs/addons"
+    "var/langs/en/addons",
+    "var/themes_repository/{$addonId}",
 ];
 
 foreach ($folders as $folder) {
-    create_dir($root . DIRECTORY_SEPARATOR . $folder);
+    $create = askYesNo("Do you want to create folder: {$folder}?", true);
+    if ($create) {
+        create_dir($root . DIRECTORY_SEPARATOR . $folder);
+        echo "✔ Created: {$folder}\n";
+    } else {
+        echo "❌ Skipped: {$folder}\n";
+    }
 }
 
 // ----------------------
 // addon.xml
 // ----------------------
-create_file(
-    "{$root}/app/addons/{$addonId}/addon.xml",
-    <<<XML
+$addonXmlContent = <<<XML
 <?xml version="1.0"?>
 <addon scheme="4.0">
     <id>{$addonId}</id>
@@ -86,15 +108,17 @@ create_file(
     <bootstrap>Tygh\\Addons\\{$addonNamespace}\\Bootstrap</bootstrap>
     <installer>Tygh\\Addons\\{$addonNamespace}\\Installer</installer>
 </addon>
-XML
-);
+XML;
+
+if (askYesNo("Create addon.xml?", true)) {
+    create_file("{$root}/app/addons/{$addonId}/addon.xml", $addonXmlContent);
+    echo "✔ Created addon.xml\n";
+}
 
 // ----------------------
-// Bootstrap.php
+// Bootstrap.php content
 // ----------------------
-create_file(
-    "{$root}/app/addons/{$addonId}/src/Bootstrap.php",
-    <<<PHP
+$bootstrapContent = <<<PHP
 <?php
 
 namespace Tygh\\Addons\\{$addonNamespace};
@@ -115,15 +139,17 @@ class Bootstrap implements BootstrapInterface, HookHandlerProviderInterface
         return [];
     }
 }
-PHP
-);
+PHP;
+
+if (askYesNo("Create Bootstrap.php?", true)) {
+    create_file("{$root}/app/addons/{$addonId}/src/Bootstrap.php", $bootstrapContent);
+    echo "✔ Created Bootstrap.php\n";
+}
 
 // ----------------------
-// Installer.php
+// Installer.php content
 // ----------------------
-create_file(
-    "{$root}/app/addons/{$addonId}/src/Installer.php",
-    <<<PHP
+$installerContent = <<<PHP
 <?php
 
 namespace Tygh\\Addons\\{$addonNamespace};
@@ -150,15 +176,17 @@ class Installer implements InstallerInterface
     {
     }
 }
-PHP
-);
+PHP;
+
+if (askYesNo("Create Installer.php?", true)) {
+    create_file("{$root}/app/addons/{$addonId}/src/Installer.php", $installerContent);
+    echo "✔ Created Installer.php\n";
+}
 
 // ----------------------
-// ServiceProvider.php
+// ServiceProvider.php content
 // ----------------------
-create_file(
-    "{$root}/app/addons/{$addonId}/src/ServiceProvider.php",
-    <<<PHP
+$serviceProviderContent = <<<PHP
 <?php
 
 namespace Tygh\\Addons\\{$addonNamespace};
@@ -173,8 +201,36 @@ class ServiceProvider implements ServiceProviderInterface
         // Register services here
     }
 }
-PHP
-);
+PHP;
+
+if (askYesNo("Create ServiceProvider.php?", true)) {
+    create_file("{$root}/app/addons/{$addonId}/src/ServiceProvider.php", $serviceProviderContent);
+    echo "✔ Created ServiceProvider.php\n";
+}
+
+// ----------------------
+// Language file content
+// ----------------------
+$langContent = <<<PO
+msgid ""
+msgstr ""
+"Project-Id-Version: {$addonId}\\n"
+"Language: en\\n"
+"MIME-Version: 1.0\\n"
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Content-Transfer-Encoding: 8bit\\n"
+
+# Example translations
+msgid "hello"
+msgstr "Hello"
+
+msgid "welcome_message"
+msgstr "Welcome to our addon!"
+PO;
+
+if (askYesNo("Create language file en.po?", true)) {
+    create_file("{$root}/var/langs/en/addons/en.po", $langContent);
+    echo "✔ Created en.po\n";
+}
 
 echo "✅ CS-Cart addon scaffold created: {$addonId}\n";
-
